@@ -295,3 +295,191 @@ pub fn get_item_kind(item: &rustdoc_types::Item) -> String {
     }
     .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustdoc_types::{Crate, Generics, Id, Item, ItemEnum, Span, Visibility};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    fn create_dummy_metadata() -> cargo_metadata::Metadata {
+        serde_json::from_str(
+            r#"{
+            "packages": [],
+            "workspace_members": [],
+            "workspace_default_members": [],
+            "resolve": null,
+            "target_directory": "/tmp",
+            "version": 1,
+            "workspace_root": "/tmp"
+        }"#,
+        )
+        .unwrap()
+    }
+
+    fn create_dummy_workspace() -> Workspace {
+        Workspace {
+            root: PathBuf::from("/tmp"),
+            metadata: create_dummy_metadata(),
+            packages: HashMap::new(),
+        }
+    }
+
+    fn create_dummy_item(name: &str, inner: ItemEnum) -> Item {
+        let id_val = name.len() as u32;
+        Item {
+            id: Id(id_val),
+            crate_id: 0,
+            name: Some(name.to_string()),
+            span: Some(Span {
+                filename: Default::default(),
+                begin: (0, 0),
+                end: (0, 0),
+            }),
+            visibility: Visibility::Public,
+            docs: None,
+            links: HashMap::new(),
+            attrs: Vec::new(),
+            deprecation: None,
+            inner,
+        }
+    }
+
+    #[test]
+    fn test_get_item_kind() {
+        let item = create_dummy_item(
+            "test",
+            ItemEnum::Struct(rustdoc_types::Struct {
+                generics: Generics {
+                    params: vec![],
+                    where_predicates: vec![],
+                },
+                kind: rustdoc_types::StructKind::Unit,
+                impls: vec![],
+            }),
+        );
+        assert_eq!(get_item_kind(&item), "struct");
+
+        let item = create_dummy_item(
+            "test",
+            ItemEnum::Function(rustdoc_types::Function {
+                generics: Generics {
+                    params: vec![],
+                    where_predicates: vec![],
+                },
+                header: rustdoc_types::FunctionHeader {
+                    is_const: false,
+                    is_unsafe: false,
+                    is_async: false,
+                    abi: rustdoc_types::Abi::Rust,
+                },
+                has_body: true,
+                sig: rustdoc_types::FunctionSignature {
+                    inputs: vec![],
+                    output: None,
+                    is_c_variadic: false,
+                },
+            }),
+        );
+        assert_eq!(get_item_kind(&item), "function");
+    }
+
+    #[tokio::test]
+    async fn test_search_docs() {
+        let workspace = create_dummy_workspace();
+        let index = CrateIndex::new(workspace);
+
+        // Manually populate the index
+        let mut krate = Crate {
+            root: Id(0),
+            crate_version: None,
+            includes_private: false,
+            index: HashMap::new(),
+            paths: HashMap::new(),
+            external_crates: HashMap::new(),
+            format_version: 0,
+            target: rustdoc_types::Target {
+                triple: "x86_64-unknown-linux-gnu".to_string(),
+                target_features: vec![],
+            },
+        };
+
+        let item1 = create_dummy_item(
+            "Vec",
+            ItemEnum::Struct(rustdoc_types::Struct {
+                generics: Generics {
+                    params: vec![],
+                    where_predicates: vec![],
+                },
+                kind: rustdoc_types::StructKind::Unit,
+                impls: vec![],
+            }),
+        );
+        krate.index.insert(item1.id.clone(), item1);
+
+        let item2 = create_dummy_item(
+            "String",
+            ItemEnum::Struct(rustdoc_types::Struct {
+                generics: Generics {
+                    params: vec![],
+                    where_predicates: vec![],
+                },
+                kind: rustdoc_types::StructKind::Unit,
+                impls: vec![],
+            }),
+        );
+        krate.index.insert(item2.id.clone(), item2);
+
+        let mut path_to_id = HashMap::new();
+        // Since we used len() as ID, Vec -> 3, String -> 6
+        path_to_id.insert("std::vec::Vec".to_string(), Id(3));
+        path_to_id.insert("std::string::String".to_string(), Id(6));
+
+        index.crates.insert(
+            "std".to_string(),
+            LoadedCrate {
+                krate: krate.clone(),
+                path_to_id,
+            },
+        );
+
+        // Add an empty "other" crate
+        let other_krate = Crate {
+            root: Id(0),
+            crate_version: None,
+            includes_private: false,
+            index: HashMap::new(),
+            paths: HashMap::new(),
+            external_crates: HashMap::new(),
+            format_version: 0,
+            target: rustdoc_types::Target {
+                triple: "x86_64-unknown-linux-gnu".to_string(),
+                target_features: vec![],
+            },
+        };
+
+        index.crates.insert(
+            "other".to_string(),
+            LoadedCrate {
+                krate: other_krate,
+                path_to_id: HashMap::new(),
+            },
+        );
+
+        // Test exact match
+        let results = index.search("Vec", None).await.unwrap();
+        assert!(results.iter().any(|r| r.name == "std::vec::Vec"));
+
+        // Test fuzzy match
+        let results = index.search("std::string::Strng", None).await.unwrap();
+        assert!(results.iter().any(|r| r.name == "std::string::String"));
+
+        // Test crate filtering
+        let results = index.search("Vec", Some("std")).await.unwrap();
+        assert!(!results.is_empty());
+
+        let results = index.search("Vec", Some("other")).await.unwrap();
+        assert!(results.is_empty());
+    }
+}

@@ -9,11 +9,11 @@ Returns a list of all dependencies available in the current project. Use this to
 
 ### `list_crate_items`
 Lists the root items of a specific crate.
-- `crate_name`: The name of the crate (e.g., "std", "tokio", or the current project name).
+- `crate_name`: The name of the crate (e.g., "serde", "tokio", or the current project name).
 
 ### `get_docs`
 Returns the full markdown documentation for a specific item path.
-- `path`: The full path to the item (e.g., `std::vec::Vec`, `tokio::net::TcpStream`).
+- `path`: The full path to the item (e.g., `tokio::net::TcpStream`).
 
 ### `search_docs`
 Performs a fuzzy search across the index for items matching the query.
@@ -22,7 +22,7 @@ Performs a fuzzy search across the index for items matching the query.
 
 ### `get_module`
 Returns a summary of all public items within a specific module path.
-- `path`: The full path to the module (e.g., `std::collections`).
+- `path`: The full path to the module (e.g., `tokio::process`).
 
 ## Recommended Workflow
 

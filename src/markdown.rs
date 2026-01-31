@@ -458,3 +458,143 @@ fn format_precise_capturing_args(precise_capturing_args: &[PreciseCapturingArg])
         .join(", ");
     format!("use<{}>", args_str)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustdoc_types::{
+        Crate, Generics, Id, Item, ItemEnum, Span, StructKind, Visibility,
+    };
+    use std::collections::HashMap;
+
+    fn create_dummy_item(name: &str, inner: ItemEnum) -> Item {
+        let id_val = name.len() as u32; 
+        Item {
+            id: Id(id_val),
+            crate_id: 0,
+            name: Some(name.to_string()),
+            span: Some(Span {
+                filename: Default::default(),
+                begin: (0, 0),
+                end: (0, 0),
+            }),
+            visibility: Visibility::Public,
+            docs: None,
+            links: HashMap::new(),
+            attrs: Vec::new(),
+            deprecation: None,
+            inner,
+        }
+    }
+
+    fn create_dummy_crate() -> Crate {
+        Crate {
+            root: Id(0),
+            crate_version: None,
+            includes_private: false,
+            index: HashMap::new(),
+            paths: HashMap::new(),
+            external_crates: HashMap::new(),
+            format_version: 0,
+            target: rustdoc_types::Target {
+                triple: "x86_64-unknown-linux-gnu".to_string(),
+                target_features: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn test_format_type_primitive() {
+        let ty = Type::Primitive("i32".to_string());
+        assert_eq!(format_type(&ty), "i32");
+    }
+
+    #[test]
+    fn test_format_type_tuple() {
+        let ty = Type::Tuple(vec![
+            Type::Primitive("i32".to_string()),
+            Type::Primitive("String".to_string()),
+        ]);
+        assert_eq!(format_type(&ty), "(i32, String)");
+    }
+
+    #[test]
+    fn test_format_type_slice() {
+        let ty = Type::Slice(Box::new(Type::Primitive("u8".to_string())));
+        assert_eq!(format_type(&ty), "[u8]");
+    }
+
+    #[test]
+    fn test_generate_struct_markdown() {
+        let krate = create_dummy_crate();
+        let item = create_dummy_item(
+            "MyStruct",
+            ItemEnum::Struct(rustdoc_types::Struct {
+                generics: Generics {
+                    params: vec![],
+                    where_predicates: vec![],
+                },
+                kind: StructKind::Plain {
+                    fields: vec![],
+                    has_stripped_fields: false,
+                },
+                impls: vec![],
+            }),
+        );
+
+        let md = generate_item_markdown(&item, &krate);
+        assert!(md.contains("# Struct MyStruct"));
+        assert!(md.contains("struct MyStruct { ... }"));
+    }
+
+    #[test]
+    fn test_generate_enum_markdown() {
+        let krate = create_dummy_crate();
+        let item = create_dummy_item(
+            "MyEnum",
+            ItemEnum::Enum(rustdoc_types::Enum {
+                generics: Generics {
+                    params: vec![],
+                    where_predicates: vec![],
+                },
+                variants: vec![],
+                impls: vec![],
+                has_stripped_variants: false,
+            }),
+        );
+
+        let md = generate_item_markdown(&item, &krate);
+        assert!(md.contains("# Enum MyEnum"));
+        assert!(md.contains("enum MyEnum"));
+    }
+
+    #[test]
+    fn test_generate_function_markdown() {
+        let krate = create_dummy_crate();
+        let item = create_dummy_item(
+            "my_fn",
+            ItemEnum::Function(rustdoc_types::Function {
+                generics: Generics {
+                    params: vec![],
+                    where_predicates: vec![],
+                },
+                header: rustdoc_types::FunctionHeader {
+                    is_const: false,
+                    is_unsafe: false,
+                    is_async: false,
+                    abi: rustdoc_types::Abi::Rust,
+                },
+                has_body: true,
+                sig: rustdoc_types::FunctionSignature {
+                    inputs: vec![("arg1".to_string(), Type::Primitive("i32".to_string()))],
+                    output: Some(Type::Primitive("bool".to_string())),
+                    is_c_variadic: false,
+                },
+            }),
+        );
+
+        let md = generate_item_markdown(&item, &krate);
+        assert!(md.contains("# Function my_fn"));
+        assert!(md.contains("fn my_fn(arg1: i32) -> bool"));
+    }
+}
