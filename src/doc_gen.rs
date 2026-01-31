@@ -9,12 +9,7 @@ pub struct DocGenerator;
 
 impl DocGenerator {
     #[instrument(skip(cwd, target_dir))]
-    pub async fn generate(
-        package_name: &str,
-        features: Option<&[String]>,
-        cwd: &str,
-        target_dir: &Path,
-    ) -> Result<PathBuf> {
+    pub async fn generate(package_name: &str, cwd: &str, target_dir: &Path) -> Result<PathBuf> {
         let json_path = target_dir
             .join("doc")
             .join(format!("{}.json", package_name.replace('-', "_")));
@@ -45,13 +40,6 @@ impl DocGenerator {
             .arg("rustdoc")
             .arg("-p")
             .arg(package_name);
-
-        if let Some(features) = features {
-            cmd.arg("--no-default-features");
-            if !features.is_empty() {
-                cmd.arg("--features").arg(features.join(","));
-            }
-        }
 
         cmd.arg("--lib")
             .arg("--")

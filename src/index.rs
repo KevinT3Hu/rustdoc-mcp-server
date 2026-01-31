@@ -52,49 +52,13 @@ impl CrateIndex {
 
         if !json_path.exists() {
             debug!("JSON not found, generating docs for {}", crate_name);
-            let package = self.workspace.packages.get(crate_name).or_else(|| {
-                self.workspace
-                    .packages
-                    .iter()
-                    .find(|(k, _)| k.replace('-', "_") == crate_name)
-                    .map(|(_, v)| v)
-            });
 
-            if let Some(pkg) = package {
-                let features = self
-                    .workspace
-                    .metadata
-                    .resolve
-                    .as_ref()
-                    .and_then(|resolve| {
-                        resolve
-                            .nodes
-                            .iter()
-                            .find(|node| node.id == pkg.id)
-                            .map(|node| {
-                                node.features
-                                    .iter()
-                                    .map(|f| f.to_string())
-                                    .collect::<Vec<_>>()
-                            })
-                    });
-
-                DocGenerator::generate(
-                    &pkg.name,
-                    features.as_deref(),
-                    self.workspace.root.to_str().unwrap(),
-                    target_dir,
-                )
-                .await?;
-            } else {
-                DocGenerator::generate(
-                    crate_name,
-                    None,
-                    self.workspace.root.to_str().unwrap(),
-                    target_dir,
-                )
-                .await?;
-            }
+            DocGenerator::generate(
+                crate_name,
+                self.workspace.root.to_str().unwrap(),
+                target_dir,
+            )
+            .await?;
         }
 
         info!("Reading rustdoc JSON from {:?}", json_path);

@@ -1,6 +1,6 @@
 [package]
 name = "rustdoc-mcp-server"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["KevinT3Hu"]
 description = "MCP server for accessing Rust crate documentation"

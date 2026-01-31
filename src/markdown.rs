@@ -462,13 +462,11 @@ fn format_precise_capturing_args(precise_capturing_args: &[PreciseCapturingArg])
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustdoc_types::{
-        Crate, Generics, Id, Item, ItemEnum, Span, StructKind, Visibility,
-    };
+    use rustdoc_types::{Crate, Generics, Id, Item, ItemEnum, Span, StructKind, Visibility};
     use std::collections::HashMap;
 
     fn create_dummy_item(name: &str, inner: ItemEnum) -> Item {
-        let id_val = name.len() as u32; 
+        let id_val = name.len() as u32;
         Item {
             id: Id(id_val),
             crate_id: 0,
