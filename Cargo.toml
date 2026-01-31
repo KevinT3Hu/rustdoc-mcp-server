@@ -1,0 +1,35 @@
+[package]
+name = "rustdoc-mcp"
+version = "0.1.0"
+edition = "2024"
+authors = ["KevinT3Hu"]
+description = "MCP server for accessing Rust crate documentation"
+homepage = "https://github.com/KevinT3Hu/rustdoc-mcp"
+repository = "https://github.com/KevinT3Hu/rustdoc-mcp"
+keywords = ["rustdoc", "mcp", "documentation"]
+categories = ["development-tools"]
+license-file = "LICENSE"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1.0"
+cargo_metadata = "0.23.1"
+clap = { version = "4.5.56", features = ["derive"] }
+dashmap = "6.1.0"
+fs2 = "0.4.3"
+markdown-builder = "1.0.0"
+rmcp = { version = "0.14.0", features = ["transport-io"] }
+rustdoc-types = "0.57.0"
+schemars = "1.2.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+strsim = "0.11.1"
+tokio = { version = "1.49.0", features = [
+    "fs",
+    "io-util",
+    "process",
+    "rt-multi-thread",
+] }
+tracing = "0.1.44"
+tracing-appender = "0.2.4"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
