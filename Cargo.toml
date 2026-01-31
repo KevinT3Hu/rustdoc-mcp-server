@@ -1,11 +1,11 @@
 [package]
-name = "rustdoc-mcp"
+name = "rustdoc-mcp-server"
 version = "0.1.0"
 edition = "2024"
 authors = ["KevinT3Hu"]
 description = "MCP server for accessing Rust crate documentation"
-homepage = "https://github.com/KevinT3Hu/rustdoc-mcp"
-repository = "https://github.com/KevinT3Hu/rustdoc-mcp"
+homepage = "https://github.com/KevinT3Hu/rustdoc-mcp-server"
+repository = "https://github.com/KevinT3Hu/rustdoc-mcp-server"
 keywords = ["rustdoc", "mcp", "documentation"]
 categories = ["development-tools"]
 license-file = "LICENSE"

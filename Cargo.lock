@@ -746,7 +746,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustdoc-mcp"
+name = "rustdoc-mcp-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
