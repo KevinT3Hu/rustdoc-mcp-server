@@ -5,10 +5,10 @@ use rustdoc_types::{
 };
 use tracing::debug;
 
-fn find_parent_impl<'a>(krate: &'a Crate, id: &Id) -> Option<&'a Item> {
+fn find_parent_impl(krate: &Crate, id: Id) -> Option<&Item> {
     krate.index.values().find(|item| {
         if let ItemEnum::Impl(impl_) = &item.inner {
-            impl_.items.contains(id)
+            impl_.items.contains(&id)
         } else {
             false
         }
@@ -21,7 +21,7 @@ fn format_impl_header(impl_: &rustdoc_types::Impl) -> String {
     s.push(' ');
 
     if let Some(trait_) = &impl_.trait_ {
-        s.push_str(&format_path_like(&trait_.path, &trait_.args));
+        s.push_str(&format_path_like(&trait_.path, trait_.args.as_deref()));
         s.push_str(" for ");
     }
 
@@ -42,13 +42,13 @@ pub fn generate_item_markdown(item: &Item, krate: &Crate) -> String {
         .unwrap_or("<unnamed>");
     let kind = get_item_kind(item);
 
-    doc.header1(format!("{} {}", kind, name));
+    doc.header1(format!("{kind} {name}"));
 
-    if let Some(parent) = find_parent_impl(krate, &item.id) {
-        if let ItemEnum::Impl(impl_) = &parent.inner {
-            let cb = format_impl_header(impl_).to_code_block_with_language("rust");
-            doc.paragraph(cb);
-        }
+    if let Some(parent) = find_parent_impl(krate, item.id)
+        && let ItemEnum::Impl(impl_) = &parent.inner
+    {
+        let cb = format_impl_header(impl_).to_code_block_with_language("rust");
+        doc.paragraph(cb);
     }
 
     // Signature / Definition
@@ -79,11 +79,12 @@ pub fn generate_item_markdown(item: &Item, krate: &Crate) -> String {
                         let field_name = field.name.as_deref().unwrap_or("_");
                         let field_type = format_type(ty);
 
-                        let mut line = format!("`{}: {}`", field_name, field_type);
+                        let mut line = format!("`{field_name}: {field_type}`");
                         if let Some(d) = &field.docs {
                             let short = d.lines().next().unwrap_or("").trim();
                             if !short.is_empty() {
-                                line.push_str(&format!(" - {}", short));
+                                use std::fmt::Write;
+                                write!(&mut line, " - {short}").ok();
                             }
                         }
                         field_list = field_list.append(line);
@@ -101,7 +102,7 @@ pub fn generate_item_markdown(item: &Item, krate: &Crate) -> String {
                     if let Some(variant) = krate.index.get(variant_id) {
                         let variant_name = variant.name.as_deref().unwrap_or("_");
 
-                        let mut line = format!("`{}`", variant_name);
+                        let mut line = format!("`{variant_name}`");
 
                         if let ItemEnum::Variant(v) = &variant.inner {
                             match &v.kind {
@@ -113,14 +114,15 @@ pub fn generate_item_markdown(item: &Item, krate: &Crate) -> String {
                                 rustdoc_types::VariantKind::Struct { .. } => {
                                     line.push_str(" { ... }");
                                 }
-                                _ => {}
+                                rustdoc_types::VariantKind::Plain => {}
                             }
                         }
 
                         if let Some(d) = &variant.docs {
                             let short = d.lines().next().unwrap_or("").trim();
                             if !short.is_empty() {
-                                line.push_str(&format!(" - {}", short));
+                                use std::fmt::Write;
+                                write!(&mut line, " - {short}").ok();
                             }
                         }
                         variant_list = variant_list.append(line);
@@ -179,10 +181,10 @@ fn format_generic_bound(bound: &GenericBound) -> String {
                     .iter()
                     .map(|p| {
                         if let GenericParamDefKind::Lifetime { outlives } = &p.kind {
-                            if !outlives.is_empty() {
-                                format!("{}: {}", p.name, outlives.join(" + "))
-                            } else {
+                            if outlives.is_empty() {
                                 p.name.clone()
+                            } else {
+                                format!("{}: {}", p.name, outlives.join(" + "))
                             }
                         } else {
                             p.name.clone()
@@ -199,7 +201,7 @@ fn format_generic_bound(bound: &GenericBound) -> String {
                 TraitBoundModifier::MaybeConst => s.push_str("~const "),
             }
 
-            s.push_str(&format_path_like(&trait_.path, &trait_.args));
+            s.push_str(&format_path_like(&trait_.path, trait_.args.as_deref()));
             s
         }
         GenericBound::Outlives(l) => l.clone(),
@@ -337,7 +339,7 @@ fn format_item_definition(item: &Item) -> String {
 
 fn format_type(ty: &Type) -> String {
     match ty {
-        Type::ResolvedPath(p) => format_path_like(&p.path, &p.args),
+        Type::ResolvedPath(p) => format_path_like(&p.path, p.args.as_deref()),
         Type::Primitive(p) => p.clone(),
         Type::Tuple(types) => {
             let types: Vec<String> = types.iter().map(format_type).collect();
@@ -381,21 +383,20 @@ fn format_type(ty: &Type) -> String {
             let traits: Vec<String> = dyn_trait
                 .traits
                 .iter()
-                .map(|t| format_path_like(&t.trait_.path, &t.trait_.args))
+                .map(|t| format_path_like(&t.trait_.path, t.trait_.args.as_deref()))
                 .collect();
             s.push_str(&traits.join(" + "));
             s
         }
-        Type::Infer => "_".to_string(),
         // Fallback for others
         _ => "_".to_string(),
     }
 }
 
-fn format_path_like(name: &str, args: &Option<Box<GenericArgs>>) -> String {
+fn format_path_like(name: &str, args: Option<&GenericArgs>) -> String {
     let mut s = name.to_string();
     if let Some(args) = args {
-        match &**args {
+        match args {
             GenericArgs::AngleBracketed { args, constraints } => {
                 if !args.is_empty() || !constraints.is_empty() {
                     s.push('<');
@@ -451,24 +452,21 @@ fn format_precise_capturing_args(precise_capturing_args: &[PreciseCapturingArg])
     let args_str = precise_capturing_args
         .iter()
         .map(|arg| match arg {
-            PreciseCapturingArg::Lifetime(name) => name.clone(),
-            PreciseCapturingArg::Param(name) => name.clone(),
+            PreciseCapturingArg::Lifetime(name) | PreciseCapturingArg::Param(name) => name.clone(),
         })
         .collect::<Vec<_>>()
         .join(", ");
-    format!("use<{}>", args_str)
+    format!("use<{args_str}>")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustdoc_types::{
-        Crate, Generics, Id, Item, ItemEnum, Span, StructKind, Visibility,
-    };
+    use rustdoc_types::{Crate, Generics, Id, Item, ItemEnum, Span, StructKind, Visibility};
     use std::collections::HashMap;
 
     fn create_dummy_item(name: &str, inner: ItemEnum) -> Item {
-        let id_val = name.len() as u32; 
+        let id_val = name.len() as u32;
         Item {
             id: Id(id_val),
             crate_id: 0,

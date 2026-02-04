@@ -1,6 +1,9 @@
 use std::env::current_dir;
 
-use crate::types::*;
+use crate::types::{
+    GetDocsArgs, GetModuleArgs, GetModuleResult, ItemSummary, ListCrateItemsArgs,
+    ListCrateItemsResult, ListDepsResult, SearchDocsArgs, SearchDocsResult,
+};
 use crate::workspace::Workspace;
 use crate::{
     index::{CrateIndex, get_item_kind},
@@ -44,7 +47,7 @@ impl RustDocMCPServer {
         }
 
         let workspace =
-            Workspace::load(&cwd).map_err(|e| format!("Failed to load workspace: {}", e))?;
+            Workspace::load(&cwd).map_err(|e| format!("Failed to load workspace: {e}"))?;
 
         let index = CrateIndex::new(workspace.clone());
 
@@ -148,7 +151,7 @@ impl RustDocMCPServer {
         let id = krate_ref
             .path_to_id
             .get(path)
-            .ok_or(format!("Item not found: {}", path))?;
+            .ok_or(format!("Item not found: {path}"))?;
 
         debug!("Found item ID: {:?}", id);
 
@@ -211,7 +214,7 @@ impl RustDocMCPServer {
         let id = krate_ref
             .path_to_id
             .get(path)
-            .ok_or(format!("Module not found: {}", path))?;
+            .ok_or(format!("Module not found: {path}"))?;
         let item = krate_ref
             .krate
             .index
@@ -244,7 +247,7 @@ impl RustDocMCPServer {
 
             Ok(Json(GetModuleResult { items: children }))
         } else {
-            Err(format!("Item at {} is not a module", path))
+            Err(format!("Item at {path} is not a module"))
         }
     }
 }

@@ -20,7 +20,7 @@ pub struct LoadedCrate {
 
 #[derive(Debug, Clone)]
 pub struct CrateIndex {
-    /// Cache of loaded crates: crate_name -> LoadedCrate
+    /// Cache of loaded crates: `crate_name` -> `LoadedCrate`
     crates: Arc<DashMap<String, LoadedCrate>>,
     workspace: Workspace,
 }
@@ -74,7 +74,7 @@ impl CrateIndex {
                             .map(|node| {
                                 node.features
                                     .iter()
-                                    .map(|f| f.to_string())
+                                    .map(std::string::ToString::to_string)
                                     .collect::<Vec<_>>()
                             })
                     });
@@ -104,7 +104,7 @@ impl CrateIndex {
         let krate: Crate =
             serde_json::from_str(&content).context("Failed to parse rustdoc JSON")?;
 
-        let path_to_id = self.build_path_map(&krate, crate_name);
+        let path_to_id = Self::build_path_map(&krate, crate_name);
 
         self.crates
             .insert(crate_name.to_string(), LoadedCrate { krate, path_to_id });
@@ -112,14 +112,14 @@ impl CrateIndex {
         Ok(())
     }
 
-    fn build_path_map(&self, krate: &Crate, crate_name: &str) -> HashMap<String, Id> {
+    fn build_path_map(krate: &Crate, crate_name: &str) -> HashMap<String, Id> {
         debug!("Building path map for crate: {}", crate_name);
         let mut map = HashMap::new();
 
         // Traverse `index` starting from root.
         let root_id = &krate.root;
         if let Some(root_item) = krate.index.get(root_id) {
-            self.traverse_item(krate, root_item, crate_name.to_string(), &mut map);
+            Self::traverse_item(krate, root_item, crate_name, &mut map);
         }
 
         info!("Indexed {} paths for crate {}", map.len(), crate_name);
@@ -128,13 +128,12 @@ impl CrateIndex {
     }
 
     fn traverse_item(
-        &self,
         krate: &Crate,
         item: &Item,
-        current_path: String,
+        current_path: &str,
         map: &mut HashMap<String, Id>,
     ) {
-        map.insert(current_path.clone(), item.id);
+        map.insert(current_path.to_string(), item.id);
 
         match &item.inner {
             ItemEnum::Module(m) => {
@@ -142,8 +141,8 @@ impl CrateIndex {
                     if let Some(child) = krate.index.get(item_id)
                         && let Some(name) = &child.name
                     {
-                        let child_path = format!("{}::{}", current_path, name);
-                        self.traverse_item(krate, child, child_path, map);
+                        let child_path = format!("{current_path}::{name}");
+                        Self::traverse_item(krate, child, &child_path, map);
                     }
                 }
             }
@@ -152,7 +151,7 @@ impl CrateIndex {
                     if let Some(field) = krate.index.get(field_id)
                         && let Some(name) = &field.name
                     {
-                        let field_path = format!("{}::{}", current_path, name);
+                        let field_path = format!("{current_path}::{name}");
                         map.insert(field_path, field.id);
                     }
                 };
@@ -178,7 +177,7 @@ impl CrateIndex {
                             if let Some(item) = krate.index.get(item_id)
                                 && let Some(name) = &item.name
                             {
-                                let item_path = format!("{}::{}", current_path, name);
+                                let item_path = format!("{current_path}::{name}");
                                 map.insert(item_path, item.id);
                             }
                         }
@@ -190,7 +189,7 @@ impl CrateIndex {
                     if let Some(variant) = krate.index.get(variant_id)
                         && let Some(name) = &variant.name
                     {
-                        let variant_path = format!("{}::{}", current_path, name);
+                        let variant_path = format!("{current_path}::{name}");
                         map.insert(variant_path, variant.id);
                     }
                 }
@@ -202,7 +201,7 @@ impl CrateIndex {
                             if let Some(item) = krate.index.get(item_id)
                                 && let Some(name) = &item.name
                             {
-                                let item_path = format!("{}::{}", current_path, name);
+                                let item_path = format!("{current_path}::{name}");
                                 map.insert(item_path, item.id);
                             }
                         }
@@ -247,8 +246,7 @@ impl CrateIndex {
                         .krate
                         .index
                         .get(id)
-                        .map(get_item_kind)
-                        .unwrap_or_else(|| "unknown".to_string());
+                        .map_or_else(|| "unknown".to_string(), get_item_kind);
                     matches.push((path.clone(), kind, score));
                 }
             }
@@ -270,7 +268,10 @@ impl CrateIndex {
 }
 
 pub fn get_item_kind(item: &rustdoc_types::Item) -> String {
-    use rustdoc_types::ItemEnum::*;
+    use rustdoc_types::ItemEnum::{
+        AssocConst, AssocType, Enum, ExternCrate, Function, Impl, Macro, Module, Primitive,
+        ProcMacro, Static, Struct, StructField, Trait, TraitAlias, TypeAlias, Union, Use, Variant,
+    };
     match &item.inner {
         Module(_) => "module",
         ExternCrate { .. } => "extern_crate",

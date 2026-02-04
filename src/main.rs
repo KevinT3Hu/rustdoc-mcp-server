@@ -49,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
                 Ok(s) => s,
                 Err(e) => {
                     tracing::error!("Failed to start server: {}", e);
-                    return Err(anyhow::anyhow!("Failed to start server: {}", e));
+                    return Err(anyhow::anyhow!("Failed to start server: {e}"));
                 }
             };
 
@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
             service
                 .waiting()
                 .await
-                .map_err(|e| anyhow::anyhow!("Server encountered an error during execution: {}", e))
+                .map_err(|e| anyhow::anyhow!("Server encountered an error during execution: {e}"))
                 .map(|_| {
                     tracing::info!("Server stopped gracefully");
                 })

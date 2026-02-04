@@ -69,14 +69,14 @@ impl DocGenerator {
             let stderr = String::from_utf8_lossy(&output.stderr);
             warn!("cargo rustdoc failed: {}", stderr);
             lock_file.unlock().ok();
-            anyhow::bail!("cargo rustdoc failed for {}: {}", package_name, stderr);
+            anyhow::bail!("cargo rustdoc failed for {package_name}: {stderr}");
         }
 
         if !json_path.exists() {
             lock_file.unlock().ok();
             anyhow::bail!(
-                "Documentation generated but file not found at expected path: {:?}",
-                json_path
+                "Documentation generated but file not found at expected path: {}",
+                json_path.display()
             );
         }
 
